@@ -34,9 +34,76 @@ jobs:
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      - name: Format
+      - name: Check
         run: |
-          bunx @biomejs/biome format src
-      - name: Lint
+          bunx @biomejs/biome@2.0.0 check src
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    if: github.event.action != 'closed' || github.event.pull_request.merged != true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            bun.lockb
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - name: Install
+        run: bun install --ignore-scripts
+      - name: Test
         run: |
-          bunx @biomejs/biome lint src
+          bun test
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    if: github.event.action != 'closed' || github.event.pull_request.merged != true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            ${{ github.workspace }}/.next/cache
+            ${{ github.workspace }}/node_modules/.cache
+          key: ${{ runner.os }}-nextjs-bun-${{ hashFiles('**/bun.lockb') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-bun-${{ hashFiles('**/bun.lockb') }}-
+      - name: Install
+        run: bun install --ignore-scripts
+      - name: Build
+        run: |
+          bun run build
+        env:
+          MM_URL: ${{ secrets.MM_URL }}
+          MM_BEARER_TOKEN: ${{ secrets.MM_BEARER_TOKEN }}
+          MM_FORM_CHANNEL_ID: ${{ secrets.MM_FORM_CHANNEL_ID }}
+          MM_CONTACT_CHANNEL_ID: ${{ secrets.MM_CONTACT_CHANNEL_ID }}
+  prune:
+    name: Prune
+    runs-on: ubuntu-24.04
+    if: github.event.action != 'closed' || github.event.pull_request.merged != true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: Prune
+        run: |
+          bunx ts-prune@latest
